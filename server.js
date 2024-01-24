@@ -3,6 +3,7 @@ const app = express();
 const fs = require('fs');
 const path = require('path');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const cors = require('cors');
 
 const uri = "mongodb+srv://mkk:mkkmkkmkk@cluster0.iyfqmpc.mongodb.net/?retryWrites=true&w=majority";
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -14,6 +15,18 @@ const client = new MongoClient(uri, {
     }
 });
 
+function sortLessons(lessons, sortCategory, sortOrder) {
+    return lessons.sort((a, b) => {
+        const sortingOrder = sortOrder === 'ascending' ? 1 : -1
+        switch (sortCategory) {
+            case "subject": return sortingOrder * a.subject.toLowerCase().localeCompare(b.subject.toLowerCase());
+            case "location": return sortingOrder * a.location.toLowerCase().localeCompare(b.location.toLowerCase());
+            case "price": return sortingOrder * (a.price > b.price ? 1 : -1)
+            case "spaces": return sortingOrder * (a.spaces > b.spaces ? 1 : -1)
+        }
+    })
+}
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -22,6 +35,8 @@ async function run() {
         await client.db("admin").command({ ping: 1 });
         console.log("connected to MongoDB!");
 
+        //middleware for cors
+        app.use(cors())
         //middleware for parsing json data
         app.use(express.json());
 
@@ -47,17 +62,15 @@ async function run() {
 
         db = client.db("cw-2");
 
-        // intercepts collection name and adds it to the request object
-        app.param('collectionName', (req, res, next, collectionName) => {
-            req.collection = db.collection(collectionName);
-            return next();
-        });
+
 
         // routes
         // get all documents in a collection in params
-        app.get('/api/:collectionName', async (req, res) => {
-            const collectionName = req.collection;
-            const result = await collectionName.find({}).toArray();
+        app.get('/api/lessons', async (req, res) => {
+            const lessonCollection = db.collection('lessons');
+            const { sortCategory, sortOrder } = req.query;
+            let result = await lessonCollection.find({}).toArray();
+            result = sortLessons(result, sortCategory, sortOrder)
             res.send(result);
         });
 
@@ -68,6 +81,43 @@ async function run() {
             res.status(201).json(result)
         })
 
+        //put route to edit the available spaces
+        app.put('/api/lessons/:id', async (req, res) => {
+            const lessonCollection = db.collection('lessons');
+            const id = req.params.id;
+            const result = await lessonCollection.updateOne({ _id: id }, { $set: { "spaces": req.body.spaces } });
+            res.send(result);
+        })
+
+        //search route
+        app.get('/api/lessons/search/:text', async (req, res) => {
+            const lessonCollection = db.collection('lessons');
+            const { sortCategory, sortOrder } = req.query;
+
+            const sortOptions = {};
+            if (sortCategory && sortOrder) {
+                sortOptions[sortCategory] = sortOrder === 'ascending' ? 1 : -1;
+            } else {
+                sortOptions['subject'] = 1;
+            }
+            const text = req.params.text;
+            const lessons = await lessonCollection.find({}).toArray();
+            const searchItem = lessons.filter((lesson) =>
+                lesson.subject.toLowerCase().includes(text.toLowerCase()) ||
+                lesson.location.toLowerCase().includes(text.toLowerCase())
+            )
+            console.log(req.query)
+            searchItem.sort((a, b) => {
+                const sortingOrder = sortOrder === 'ascending' ? 1 : -1
+                switch (sortCategory) {
+                    case "subject": return sortingOrder * a.subject.toLowerCase().localeCompare(b.subject.toLowerCase());
+                    case "location": return sortingOrder * a.location.toLowerCase().localeCompare(b.location.toLowerCase());
+                    case "price": return sortingOrder * (a.price > b.price ? 1 : -1)
+                    case "spaces": return sortingOrder * (a.spaces > b.spaces ? 1 : -1)
+                }
+            })
+            res.send(searchItem);
+        });
 
 
         // Start the server
@@ -78,4 +128,4 @@ async function run() {
     } finally {
     }
 }
-run().catch(console.dir);
+run().catch(console.dir); 
