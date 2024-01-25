@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const cors = require('cors');
-
+const port = process.env.PORT || 5000;
 const uri = process.env.MONGODB_URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -122,7 +122,7 @@ async function run() {
 
 
         // Start the server
-        app.listen(5000, () => {
+        app.listen(port, () => {
             console.log('Server started on port 5000');
         });
 
