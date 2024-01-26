@@ -120,7 +120,9 @@ async function run() {
             res.send(searchItem);
         });
 
-
+        app.get('*', function (req, res) {
+            res.send("404 not found", 404);
+        });
         // Start the server
         app.listen(port, () => {
             console.log('Server started on port 5000');
