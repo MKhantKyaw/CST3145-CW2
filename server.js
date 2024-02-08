@@ -66,6 +66,9 @@ async function run() {
 
 
         // routes
+        app.get('/', (req, res) => {
+            res.send('Welcome to the After School App');
+        });
         // get all documents in a collection in params
         app.get('/api/lessons', async (req, res) => {
             const lessonCollection = db.collection('lessons');
